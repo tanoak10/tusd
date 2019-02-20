@@ -585,17 +585,51 @@ func (handler *UnroutedHandler) finishUploadIfComplete(info FileInfo) error {
 
 // GetFile handles requests to download a file using a GET request. This is not
 // part of the specification.
+
+// modify by sjqzhang
 func (handler *UnroutedHandler) GetFile(w http.ResponseWriter, r *http.Request) {
+
+	var (
+		id string
+		err error
+		src io.Reader
+		info FileInfo
+	)
+
+
 	if !handler.composer.UsesGetReader {
 		handler.sendError(w, r, ErrNotImplemented)
 		return
 	}
 
-	id, err := extractIDFromPath(r.URL.Path)
+	id, err = extractIDFromPath(r.URL.Path)
+
+	if err != nil {
+
+		handler.sendError(w, r, err)
+		return
+	}
+
+
+	//add by sjqzhang
+
+	src, err = handler.composer.GetReader.GetReader(id)
 	if err != nil {
 		handler.sendError(w, r, err)
 		return
 	}
+
+	handler.sendResp(w, r, http.StatusOK)
+	io.Copy(w, src)
+
+
+	if closer, ok := src.(io.Closer); ok {
+		closer.Close()
+	}
+	return
+    // end
+
+
 
 	if handler.composer.UsesLocker {
 		locker := handler.composer.Locker
@@ -607,7 +641,7 @@ func (handler *UnroutedHandler) GetFile(w http.ResponseWriter, r *http.Request) 
 		defer locker.UnlockUpload(id)
 	}
 
-	info, err := handler.composer.Core.GetInfo(id)
+	info, err = handler.composer.Core.GetInfo(id)
 	if err != nil {
 		handler.sendError(w, r, err)
 		return
@@ -626,7 +660,7 @@ func (handler *UnroutedHandler) GetFile(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	src, err := handler.composer.GetReader.GetReader(id)
+	src, err= handler.composer.GetReader.GetReader(id)
 	if err != nil {
 		handler.sendError(w, r, err)
 		return
