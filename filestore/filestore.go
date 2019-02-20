@@ -23,8 +23,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tus/tusd"
-	"github.com/tus/tusd/uid"
+	"github.com/sjqzhang/tusd"
+	"github.com/sjqzhang/tusd/uid"
 
 	"gopkg.in/Acconut/lockfile.v1"
 )
@@ -37,6 +37,8 @@ type FileStore struct {
 	// Relative or absolute path to store files in. FileStore does not check
 	// whether the path exists, use os.MkdirAll in this case on your own.
 	Path string
+	// modify by sjqzhang
+	GetReaderExt func(id string) (io.Reader, error)
 }
 
 // New creates a new file based storage backend. The directory specified will
@@ -44,7 +46,12 @@ type FileStore struct {
 // whether the path exists, use os.MkdirAll to ensure.
 // In addition, a locking mechanism is provided.
 func New(path string) FileStore {
-	return FileStore{path}
+	store:= FileStore{Path:path}
+	//modify by sjqzhang
+	store.GetReaderExt= func(id string) (io.Reader, error) {
+		return os.Open(store.binPath(id))
+	}
+	return store
 }
 
 // UseIn sets this store as the core data store in the passed composer and adds
@@ -61,6 +68,7 @@ func (store FileStore) UseIn(composer *tusd.StoreComposer) {
 func (store FileStore) NewUpload(info tusd.FileInfo) (id string, err error) {
 	id = uid.Uid()
 	info.ID = id
+
 
 	// Create .bin file with no content
 	file, err := os.OpenFile(store.binPath(id), os.O_CREATE|os.O_WRONLY, defaultFilePerm)
@@ -107,8 +115,11 @@ func (store FileStore) GetInfo(id string) (tusd.FileInfo, error) {
 
 	return info, nil
 }
-
+// modify by sjqzhang
 func (store FileStore) GetReader(id string) (io.Reader, error) {
+	if store.GetReaderExt!=nil {
+		return store.GetReaderExt(id)
+	}
 	return os.Open(store.binPath(id))
 }
 
